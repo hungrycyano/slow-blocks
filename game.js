@@ -1,5 +1,5 @@
 /* =========================================================
-   ゆっくりテトリス(slow-tetris)
+   ゆっくりブロック(slow-blocks)
    ---------------------------------------------------------
    このファイルの先頭に「設定」をまとめています。
    数字を書きかえて保存し、ブラウザを再読み込みすると反映されます。
@@ -61,14 +61,14 @@ const SHAPES = [
   { id: "t3i", name: "3マス 一直線", level: 1, color: "#009e73", cells: [[0, 0], [1, 0], [2, 0]] },
   { id: "t3l", name: "3マス L字", level: 1, color: "#cc79a7", cells: [[0, 0], [0, 1], [1, 1]] },
 
-  // ----- レベル2:4マスの形(いわゆるテトリスの7種類) -----
-  { id: "I4", name: "4マス I", level: 2, color: "#00b8d4", cells: [[0, 0], [1, 0], [2, 0], [3, 0]] },
-  { id: "O4", name: "4マス O", level: 2, color: "#f0e442", cells: [[0, 0], [1, 0], [0, 1], [1, 1]] },
-  { id: "T4", name: "4マス T", level: 2, color: "#9c4dcc", cells: [[0, 0], [1, 0], [2, 0], [1, 1]] },
-  { id: "S4", name: "4マス S", level: 2, color: "#43a047", cells: [[1, 0], [2, 0], [0, 1], [1, 1]] },
-  { id: "Z4", name: "4マス Z", level: 2, color: "#e53935", cells: [[0, 0], [1, 0], [1, 1], [2, 1]] },
-  { id: "J4", name: "4マス J", level: 2, color: "#1e5bd8", cells: [[0, 0], [0, 1], [1, 1], [2, 1]] },
-  { id: "L4", name: "4マス L", level: 2, color: "#ff7f0e", cells: [[2, 0], [0, 1], [1, 1], [2, 1]] },
+  // ----- レベル2:4マスの形(I・O・T・S・Z・J・L の7種類) -----
+  { id: "I4", name: "4マス I", level: 2, color: "#a23b72", cells: [[0, 0], [1, 0], [2, 0], [3, 0]] },
+  { id: "O4", name: "4マス O", level: 2, color: "#9aa83a", cells: [[0, 0], [1, 0], [0, 1], [1, 1]] },
+  { id: "T4", name: "4マス T", level: 2, color: "#2f7fbf", cells: [[0, 0], [1, 0], [2, 0], [1, 1]] },
+  { id: "S4", name: "4マス S", level: 2, color: "#e3735e", cells: [[1, 0], [2, 0], [0, 1], [1, 1]] },
+  { id: "Z4", name: "4マス Z", level: 2, color: "#5b8c5a", cells: [[0, 0], [1, 0], [1, 1], [2, 1]] },
+  { id: "J4", name: "4マス J", level: 2, color: "#e8b4c8", cells: [[0, 0], [0, 1], [1, 1], [2, 1]] },
+  { id: "L4", name: "4マス L", level: 2, color: "#b0784a", cells: [[2, 0], [0, 1], [1, 1], [2, 1]] },
 
   // ----- レベル3:5マスの形(ペントミノ12種類) -----
   { id: "F5", name: "5マス F", level: 3, color: "#8d6e63", cells: [[1, 0], [2, 0], [0, 1], [1, 1], [1, 2]] },
@@ -138,7 +138,7 @@ let lastTime = null;
    ========================================================= */
 
 // 色を保存するときの名前
-const COLOR_STORAGE_KEY = "slowTetris.colors";
+const COLOR_STORAGE_KEY = "slowBlocks.colors";
 
 // 自分で選んだ色:{ 形の id: "#rrggbb" }
 let customColors = loadColors();
@@ -410,7 +410,7 @@ function lockPiece() {
   updateInfo();
 }
 
-// 横一列がすべてうまっている段を消して、上の段を下にずらす(ふつうのテトリス)
+// 横一列がすべてうまっている段を消して、上の段を下にずらす(ふつうの落ちものパズル)
 // ※ 列を消しても、落ちる速さは変わりません
 function clearFullRows() {
   const remaining = board.filter((row) => row.some((cell) => cell === null));
@@ -677,7 +677,7 @@ function saveImage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "slow-tetris-" + makeTimeStamp() + ".png";
+    link.download = "slow-blocks-" + makeTimeStamp() + ".png";
     document.body.appendChild(link);
     link.click();
     link.remove();
