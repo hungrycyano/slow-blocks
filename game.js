@@ -347,7 +347,8 @@ function rotate() {
 
   // 回転の中心がだいたい同じになるように、位置を調整する
   const baseX = current.x + Math.floor((oldSize.width - newSize.width) / 2);
-  const baseY = current.y + Math.floor((oldSize.height - newSize.height) / 2);
+  // (盤面の上にはみ出さないよう、いちばん上より上には行かないようにする)
+  const baseY = Math.max(0, current.y + Math.floor((oldSize.height - newSize.height) / 2));
 
   // ずらし方の候補(まずはそのまま、だめなら左右、さらに上)
   const tries = [
@@ -883,6 +884,70 @@ window.addEventListener("blur", stopAllInput);
 /* =========================================================
    画面のボタンなど
    ========================================================= */
+
+/* ---------- ブロックを動かすボタン(スマホ用) ---------- */
+
+// ボタンを「押している間」の動きを登録する
+// onPress:押したとき / onRelease:指(マウス)を離したとき
+function setupHoldButton(button, onPress, onRelease) {
+  let holding = false;
+
+  button.addEventListener("pointerdown", (event) => {
+    event.preventDefault(); // 長押しでメニューが出たり、拡大されたりしないように
+    if (paused || isFull) return;
+    holding = true;
+    button.classList.add("pressed");
+    // 指がボタンの外に少しずれても、離したことが分かるようにする
+    try {
+      button.setPointerCapture(event.pointerId);
+    } catch (error) {
+      // 使えないブラウザでは何もしない
+    }
+    onPress();
+  });
+
+  const release = () => {
+    if (!holding) return;
+    holding = false;
+    button.classList.remove("pressed");
+    if (onRelease) onRelease();
+  };
+  button.addEventListener("pointerup", release);
+  button.addEventListener("pointercancel", release);
+  button.addEventListener("lostpointercapture", release);
+
+  // キーボードの Enter などでボタンを押したとき(マウスや指ではないとき)は、1回だけ動かす
+  button.addEventListener("click", (event) => {
+    if (event.detail !== 0 || paused || isFull) return;
+    onPress();
+    if (onRelease) onRelease();
+  });
+
+  // 長押しで出るメニューを出さない
+  button.addEventListener("contextmenu", (event) => event.preventDefault());
+}
+
+// ◀ ▶:押しっぱなしにすると、一定の間隔でくり返し動く
+setupHoldButton(
+  document.getElementById("pad-left"),
+  () => startRepeat("padLeft", () => moveSideways(-1)),
+  () => stopRepeat("padLeft")
+);
+setupHoldButton(
+  document.getElementById("pad-right"),
+  () => startRepeat("padRight", () => moveSideways(1)),
+  () => stopRepeat("padRight")
+);
+// 回転:押すたびに1回まわす
+setupHoldButton(document.getElementById("pad-rotate"), rotate, null);
+// ▼:押している間だけ速く落ちる。離すと元の速さに戻る
+setupHoldButton(
+  document.getElementById("pad-down"),
+  () => { softDropping = true; },
+  () => { softDropping = false; fallTimer = 0; }
+);
+
+/* ---------- そのほかのボタン ---------- */
 
 slowButton.addEventListener("click", toggleSlow);
 undoButton.addEventListener("click", undo);

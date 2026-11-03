@@ -146,6 +146,7 @@ select {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .btn:hover {
@@ -159,6 +160,26 @@ select {
 .btn:focus-visible {
   outline: 3px solid #f0b429;
   outline-offset: 2px;
+}
+
+/* ---------- ブロックを動かすボタン(◀ 回転 ▼ ▶) ---------- */
+
+.pad {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.pad-btn {
+  min-height: 56px;
+  font-size: 1.3rem;
+  background: #3d4a5c;
+}
+
+.pad-btn.pressed {
+  background: #26303d;
+  transform: translateY(1px);
 }
 
 /* 押せないとき */
@@ -426,8 +447,23 @@ kbd {
     padding: 4px 16px 24px;
   }
 
+  .site-header {
+    padding: 8px 16px 2px;
+  }
+
   .site-header h1 {
-    font-size: 1.3rem;
+    font-size: 1.2rem;
+  }
+
+  /* せまい画面では、説明の文は省いて、盤面とボタンを大きく見せる */
+  .lead,
+  .side .hint {
+    display: none;
+  }
+
+  select {
+    padding: 2px 4px;
+    font-size: 0.85rem;
   }
 
   .play-area {
@@ -448,11 +484,56 @@ kbd {
   }
 
   .info-value {
-    font-size: 1.15rem;
+    font-size: 1.05rem;
+    line-height: 1.3;
   }
 
   .next {
-    width: 80px;
-    height: 80px;
+    width: 70px;
+    height: 70px;
+  }
+
+  .info-box h2,
+  .field-label {
+    font-size: 0.75rem;
+  }
+
+  .switch {
+    flex-wrap: wrap; /* 入りきらないときは、文字をスイッチの下に回す */
+    font-size: 0.8rem;
+    gap: 4px;
+    white-space: nowrap;
+  }
+
+  .switch-track {
+    width: 38px;
+    height: 22px;
+  }
+
+  .switch-track::after {
+    width: 16px;
+    height: 16px;
+  }
+
+  .switch input:checked + .switch-track::after {
+    transform: translateX(16px);
+  }
+
+  .pad {
+    margin-top: 10px;
+  }
+
+  .actions {
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .btn {
+    font-size: 0.85rem;
+    padding: 6px 4px;
+  }
+
+  .pad-btn {
+    font-size: 1.2rem;
   }
 }
