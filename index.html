@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ゆっくりテトリス</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <h1>ゆっくりテトリス</h1>
+    <p class="lead">あせらず、ブロックを積んで模様を作ろう</p>
+  </header>
+
+  <main class="game">
+    <!-- 盤面と、横の情報パネル -->
+    <div class="play-area">
+      <div class="board-wrap">
+        <canvas id="board" class="board" aria-label="盤面"></canvas>
+        <!-- レベルが上がったときなどの短いお知らせ -->
+        <div id="toast" class="toast" role="status" aria-live="polite"></div>
+      </div>
+
+      <aside class="side">
+        <section class="info-box">
+          <h2>次のブロック</h2>
+          <canvas id="next" class="next" aria-label="次のブロック"></canvas>
+        </section>
+        <section class="info-box">
+          <h2>レベル</h2>
+          <p class="info-value" id="level-value">1</p>
+        </section>
+        <section class="info-box">
+          <h2>置いたブロック</h2>
+          <p class="info-value"><span id="count-value">0</span> 個</p>
+        </section>
+      </aside>
+    </div>
+
+    <!-- 操作方法の説明 -->
+    <section class="help">
+      <h2>操作方法(キーボード)</h2>
+      <ul>
+        <li><kbd>←</kbd> <kbd>→</kbd> 左右に動かす</li>
+        <li><kbd>↑</kbd> または <kbd>Z</kbd> 回転</li>
+        <li><kbd>↓</kbd> 押している間だけ速く落とす</li>
+      </ul>
+    </section>
+  </main>
+
+  <!-- ふつうの script(ES Modules ではない)なので、ダブルクリックで開いても動きます -->
+  <script src="game.js"></script>
+</body>
+</html>

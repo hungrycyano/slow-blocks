@@ -1,0 +1,217 @@
+/* =========================================================
+   ゆっくりテトリス の見た目
+   ========================================================= */
+
+/* よく使う色を、名前を付けてまとめておく */
+:root {
+  --bg: #f6f1e7;          /* ページの背景 */
+  --panel: #ffffff;       /* 情報パネルの背景 */
+  --text: #2b2b2b;        /* 文字の色 */
+  --muted: #6b6b6b;       /* うすい文字の色 */
+  --line: #ddd3c0;        /* 区切り線 */
+  --accent: #2f6f9f;      /* ボタンなどの色 */
+  --accent-text: #ffffff;
+  --board-bg: #1d2433;    /* 盤面の背景 */
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic UI",
+    "Meiryo", system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+.site-header {
+  text-align: center;
+  padding: 12px 16px 4px;
+}
+
+.site-header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  letter-spacing: 0.05em;
+}
+
+.lead {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.game {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 8px 16px 32px;
+}
+
+/* ---------- 盤面と情報パネル ---------- */
+
+.play-area {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.board-wrap {
+  position: relative;
+  flex: none;
+}
+
+/* 盤面は 横:縦 = 1:2。画面の高さに合わせて大きさを決める */
+.board {
+  display: block;
+  height: min(64vh, 600px);
+  width: auto;
+  aspect-ratio: 1 / 2;
+  background: var(--board-bg);
+  border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 200px;
+}
+
+.info-box {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+}
+
+.info-box h2,
+.field-label {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  font-weight: normal;
+  color: var(--muted);
+}
+
+.info-value {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.next {
+  display: block;
+  width: 100px;
+  height: 100px;
+  margin: 0 auto;
+  background: var(--board-bg);
+  border-radius: 6px;
+}
+
+select {
+  width: 100%;
+  font: inherit;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+/* ---------- お知らせ ---------- */
+
+.toast {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  transform: translate(-50%, -50%);
+  max-width: 90%;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--text);
+  border-radius: var(--radius);
+  font-weight: bold;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.toast.show {
+  opacity: 1;
+}
+
+/* ---------- 操作方法 ---------- */
+
+.help {
+  margin-top: 20px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.help h2 {
+  font-size: 1rem;
+  margin: 0 0 4px;
+}
+
+.help ul {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: #fff;
+  text-align: center;
+  font-family: inherit;
+  font-size: 0.85em;
+}
+
+/* ---------- スマホ(画面の幅がせまいとき) ---------- */
+
+@media (max-width: 600px) {
+  .game {
+    padding: 4px 16px 24px;
+  }
+
+  .site-header h1 {
+    font-size: 1.3rem;
+  }
+
+  .play-area {
+    gap: 10px;
+  }
+
+  .board {
+    height: min(56vh, calc((100vw - 32px - 10px - 110px) * 2));
+  }
+
+  .side {
+    width: 110px;
+    gap: 6px;
+  }
+
+  .info-box {
+    padding: 6px 8px;
+  }
+
+  .info-value {
+    font-size: 1.15rem;
+  }
+
+  .next {
+    width: 80px;
+    height: 80px;
+  }
+}

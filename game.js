@@ -1,0 +1,474 @@
+/* =========================================================
+   ゆっくりテトリス(slow-tetris)
+   ---------------------------------------------------------
+   このファイルの先頭に「設定」をまとめています。
+   数字を書きかえて保存し、ブラウザを再読み込みすると反映されます。
+   ========================================================= */
+
+/* =========================================================
+   設定(ここの数字は自由に変えてかまいません)
+   ========================================================= */
+
+// ブロックが1段落ちる間隔(ミリ秒。1000 = 1秒)
+// ※ この速さは、何個積んでも、レベルが上がっても、絶対に変わりません。
+const FALL_INTERVAL_MS = 2000;
+
+// ↓キーや ▼ボタンを「押している間だけ」1段落ちる間隔(ミリ秒)
+// 離すと、すぐに上の FALL_INTERVAL_MS に戻ります。
+const SOFT_DROP_INTERVAL_MS = 60;
+
+// 盤面の大きさ(横のマス数と、縦のマス数)
+const BOARD_COLS = 10;
+const BOARD_ROWS = 20;
+
+// ←→キーを押しっぱなしにしたとき、くり返しが始まるまでの時間(ミリ秒)
+const KEY_REPEAT_DELAY_MS = 200;
+// ←→キーを押しっぱなしにしたときの、くり返しの間隔(ミリ秒)
+const KEY_REPEAT_INTERVAL_MS = 100;
+
+// お知らせ(「レベル2になりました」など)を表示しておく時間(ミリ秒)
+const TOAST_DURATION_MS = 2200;
+
+// 盤面の1マスを、何ピクセルで描くか(画面での大きさは CSS で自動調整されます)
+const CELL_SIZE = 30;
+
+/* =========================================================
+   ブロックの形
+   ---------------------------------------------------------
+   形は「マスの座標 [x, y] のリスト」で書きます。
+   x は右へ行くほど大きく、y は下へ行くほど大きくなります。
+   例:[[0, 0], [1, 0]] は、横に2マス並んだ形です。
+   level は「その形が出てくるようになるレベル」です。
+   color は、はじめの色です。
+   ========================================================= */
+const SHAPES = [
+  // ----- レベル1:かんたんな形(1〜3マス) -----
+  { id: "m1", name: "1マス(●)", level: 1, color: "#e69f00", cells: [[0, 0]] },
+  { id: "d2", name: "2マス(━)", level: 1, color: "#56b4e9", cells: [[0, 0], [1, 0]] },
+  { id: "t3i", name: "3マス 一直線", level: 1, color: "#009e73", cells: [[0, 0], [1, 0], [2, 0]] },
+  { id: "t3l", name: "3マス L字", level: 1, color: "#cc79a7", cells: [[0, 0], [0, 1], [1, 1]] },
+];
+
+/* =========================================================
+   ゲームの状態(いまの盤面や、落ちているブロックなど)
+   ========================================================= */
+
+// 盤面:board[y][x] に、置かれたブロックの形の id が入る(空いているマスは null)
+// 色ではなく形の id を入れておくので、あとで色を変えると、置いたブロックの色も変わります。
+let board = createEmptyBoard();
+
+// いま落ちているブロック:{ shapeId, cells, x, y }
+let current = null;
+
+// 次に出てくるブロックの形の id
+let nextShapeId = null;
+
+// 置いたブロックの数
+let placedCount = 0;
+
+// ↓キー(▼ボタン)を押している間だけ true になる
+let softDropping = false;
+
+// 前の段から、どれだけ時間がたったか(ミリ秒)
+let fallTimer = 0;
+
+// 前の画面更新の時刻
+let lastTime = null;
+
+/* =========================================================
+   画面の部品を取り出す
+   ========================================================= */
+const boardCanvas = document.getElementById("board");
+const boardCtx = boardCanvas.getContext("2d");
+const nextCanvas = document.getElementById("next");
+const nextCtx = nextCanvas.getContext("2d");
+const countValue = document.getElementById("count-value");
+const toast = document.getElementById("toast");
+
+// キャンバスの大きさ(ピクセル)を、盤面のマス数に合わせる
+boardCanvas.width = BOARD_COLS * CELL_SIZE;
+boardCanvas.height = BOARD_ROWS * CELL_SIZE;
+nextCanvas.width = 120;
+nextCanvas.height = 120;
+
+/* =========================================================
+   盤面とブロックの基本の処理
+   ========================================================= */
+
+// 空っぽの盤面を作る
+function createEmptyBoard() {
+  const rows = [];
+  for (let y = 0; y < BOARD_ROWS; y++) {
+    rows.push(new Array(BOARD_COLS).fill(null));
+  }
+  return rows;
+}
+
+// id から形をさがす
+function getShape(shapeId) {
+  return SHAPES.find((shape) => shape.id === shapeId);
+}
+
+// 形の色を返す
+function getColor(shapeId) {
+  return getShape(shapeId).color;
+}
+
+// マスの座標を、いちばん左上が [0, 0] になるようにずらす
+function normalizeCells(cells) {
+  const minX = Math.min(...cells.map((c) => c[0]));
+  const minY = Math.min(...cells.map((c) => c[1]));
+  return cells.map(([x, y]) => [x - minX, y - minY]);
+}
+
+// 形の横幅と高さ(マス数)を調べる
+function getSize(cells) {
+  const width = Math.max(...cells.map((c) => c[0])) + 1;
+  const height = Math.max(...cells.map((c) => c[1])) + 1;
+  return { width, height };
+}
+
+// 形を右回りに90度回した、新しいマスのリストを作る
+// (1マスのブロックは、回しても同じ形のままです)
+function rotateCells(cells) {
+  return normalizeCells(cells.map(([x, y]) => [-y, x]));
+}
+
+// 出てくるブロックの形を、ランダムに1つ選ぶ
+function pickRandomShapeId() {
+  const choices = SHAPES;
+  const index = Math.floor(Math.random() * choices.length);
+  return choices[index].id;
+}
+
+// ブロックを、盤面の上のまん中に作る
+function createPiece(shapeId) {
+  const cells = normalizeCells(getShape(shapeId).cells);
+  const { width } = getSize(cells);
+  return {
+    shapeId,
+    cells,
+    x: Math.floor((BOARD_COLS - width) / 2),
+    y: 0,
+  };
+}
+
+// ブロックを (x, y) の位置に置けるかどうか(壁や、置いたブロックにぶつからないか)
+function canPlace(cells, x, y) {
+  return cells.every(([cx, cy]) => {
+    const bx = x + cx;
+    const by = y + cy;
+    if (bx < 0 || bx >= BOARD_COLS || by < 0 || by >= BOARD_ROWS) {
+      return false; // 盤面の外
+    }
+    return board[by][bx] === null; // 空いていれば置ける
+  });
+}
+
+// 次のブロックを出す
+function spawnNextPiece() {
+  current = createPiece(nextShapeId);
+  nextShapeId = pickRandomShapeId();
+  fallTimer = 0;
+  // ↓を押したまま次のブロックになったときは、ふつうの速さに戻す(もう一度押すと速くなる)
+  softDropping = false;
+
+  if (!canPlace(current.cells, current.x, current.y)) {
+    // 置く場所がない(盤面がいっぱい)
+    current = null;
+  }
+}
+
+/* =========================================================
+   ブロックを動かす
+   ========================================================= */
+
+// 左右に動かす(dx = -1 で左、1 で右)
+function moveSideways(dx) {
+  if (!current) return;
+  if (canPlace(current.cells, current.x + dx, current.y)) {
+    current.x += dx;
+  }
+}
+
+// 回転させる。壁などにぶつかるときは、少し横や上にずらして回せないか試す
+function rotate() {
+  if (!current) return;
+  const oldSize = getSize(current.cells);
+  const newCells = rotateCells(current.cells);
+  const newSize = getSize(newCells);
+
+  // 回転の中心がだいたい同じになるように、位置を調整する
+  const baseX = current.x + Math.floor((oldSize.width - newSize.width) / 2);
+  const baseY = current.y + Math.floor((oldSize.height - newSize.height) / 2);
+
+  // ずらし方の候補(まずはそのまま、だめなら左右、さらに上)
+  const tries = [
+    [0, 0], [-1, 0], [1, 0], [-2, 0], [2, 0],
+    [0, -1], [-1, -1], [1, -1],
+  ];
+  for (const [dx, dy] of tries) {
+    if (canPlace(newCells, baseX + dx, baseY + dy)) {
+      current.cells = newCells;
+      current.x = baseX + dx;
+      current.y = baseY + dy;
+      return;
+    }
+  }
+  // どうしても回せないときは、何もしない
+}
+
+// 1段下に落とす。これ以上落ちられないときは、そこに置く
+function stepDown() {
+  if (!current) return;
+  if (canPlace(current.cells, current.x, current.y + 1)) {
+    current.y += 1;
+  } else {
+    lockPiece();
+  }
+}
+
+// いまのブロックを、盤面に置く(固定する)
+function lockPiece() {
+  for (const [cx, cy] of current.cells) {
+    board[current.y + cy][current.x + cx] = current.shapeId;
+  }
+  placedCount += 1;
+  spawnNextPiece();
+  updateInfo();
+}
+
+/* =========================================================
+   落ちる速さ
+   ---------------------------------------------------------
+   ここが「1段落ちる間隔」を決める、ただ1つの場所です。
+   置いたブロックの数やレベルは、ここでは一切使いません。
+   つまり、ゲームが進んでも速くなることはありません。
+   ========================================================= */
+function getFallInterval() {
+  if (softDropping) {
+    // ↓(▼)を押している間だけ速く落ちる。離すと元に戻る
+    return SOFT_DROP_INTERVAL_MS;
+  }
+  return FALL_INTERVAL_MS;
+}
+
+/* =========================================================
+   画面に描く
+   ========================================================= */
+
+// 1マスを描く(色を塗って、細い縁取りを付ける)
+function drawCell(ctx, px, py, size, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(px, py, size, size);
+  // 上と左を少し明るく、立体っぽく見せる
+  ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
+  ctx.fillRect(px, py, size, size * 0.18);
+  // 細い縁取り(色だけに頼らず、マスの区切りが分かるように)
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.55)";
+  ctx.lineWidth = Math.max(1, size / 15);
+  ctx.strokeRect(px + 0.5, py + 0.5, size - 1, size - 1);
+}
+
+// 盤面の背景と、うすいマス目を描く
+function drawBoardBackground(ctx) {
+  ctx.fillStyle = "#1d2433";
+  ctx.fillRect(0, 0, BOARD_COLS * CELL_SIZE, BOARD_ROWS * CELL_SIZE);
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+  ctx.lineWidth = 1;
+  for (let x = 1; x < BOARD_COLS; x++) {
+    ctx.beginPath();
+    ctx.moveTo(x * CELL_SIZE + 0.5, 0);
+    ctx.lineTo(x * CELL_SIZE + 0.5, BOARD_ROWS * CELL_SIZE);
+    ctx.stroke();
+  }
+  for (let y = 1; y < BOARD_ROWS; y++) {
+    ctx.beginPath();
+    ctx.moveTo(0, y * CELL_SIZE + 0.5);
+    ctx.lineTo(BOARD_COLS * CELL_SIZE, y * CELL_SIZE + 0.5);
+    ctx.stroke();
+  }
+}
+
+// 盤面に置かれたブロックを描く
+function drawPlacedBlocks(ctx) {
+  for (let y = 0; y < BOARD_ROWS; y++) {
+    for (let x = 0; x < BOARD_COLS; x++) {
+      const shapeId = board[y][x];
+      if (shapeId !== null) {
+        drawCell(ctx, x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, getColor(shapeId));
+      }
+    }
+  }
+}
+
+// ブロックが落ちる場所の目安(点線のわく)を描く
+function drawGhost(ctx) {
+  let ghostY = current.y;
+  while (canPlace(current.cells, current.x, ghostY + 1)) {
+    ghostY += 1;
+  }
+  if (ghostY === current.y) return;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 3]);
+  for (const [cx, cy] of current.cells) {
+    ctx.strokeRect(
+      (current.x + cx) * CELL_SIZE + 3,
+      (ghostY + cy) * CELL_SIZE + 3,
+      CELL_SIZE - 6,
+      CELL_SIZE - 6
+    );
+  }
+  ctx.setLineDash([]);
+}
+
+// 盤面全体を描く
+function drawBoard() {
+  drawBoardBackground(boardCtx);
+  drawPlacedBlocks(boardCtx);
+  if (current) {
+    drawGhost(boardCtx);
+    const color = getColor(current.shapeId);
+    for (const [cx, cy] of current.cells) {
+      drawCell(boardCtx, (current.x + cx) * CELL_SIZE, (current.y + cy) * CELL_SIZE, CELL_SIZE, color);
+    }
+  }
+}
+
+// 形を、キャンバスのまん中に小さく描く(「次のブロック」などで使う)
+function drawShapePreview(ctx, shapeId) {
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
+  ctx.fillStyle = "#1d2433";
+  ctx.fillRect(0, 0, w, h);
+  if (!shapeId) return;
+  const cells = normalizeCells(getShape(shapeId).cells);
+  const size = getSize(cells);
+  // 5マスの形まで入るように、マスの大きさを決める
+  const cell = Math.floor(Math.min(w, h) / 6);
+  const offsetX = Math.floor((w - size.width * cell) / 2);
+  const offsetY = Math.floor((h - size.height * cell) / 2);
+  const color = getColor(shapeId);
+  for (const [cx, cy] of cells) {
+    drawCell(ctx, offsetX + cx * cell, offsetY + cy * cell, cell, color);
+  }
+}
+
+// 置いたブロックの数などの表示を新しくする
+function updateInfo() {
+  countValue.textContent = placedCount;
+  drawShapePreview(nextCtx, nextShapeId);
+}
+
+// 短いお知らせを出す(ゲームは止めない)
+let toastTimerId = null;
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.add("show");
+  clearTimeout(toastTimerId);
+  toastTimerId = setTimeout(() => toast.classList.remove("show"), TOAST_DURATION_MS);
+}
+
+/* =========================================================
+   毎回の画面更新(1秒に約60回くり返す)
+   ========================================================= */
+function gameLoop(time) {
+  if (lastTime === null) lastTime = time;
+  // 前回からの時間。タブを切りかえて戻ったときに一気に進まないよう、上限を付ける
+  const dt = Math.min(time - lastTime, 250);
+  lastTime = time;
+
+  if (current) {
+    fallTimer += dt;
+    if (fallTimer >= getFallInterval()) {
+      fallTimer = 0;
+      stepDown();
+    }
+  }
+
+  drawBoard();
+  requestAnimationFrame(gameLoop);
+}
+
+/* =========================================================
+   キーボードの操作
+   ========================================================= */
+
+// ←→を押しっぱなしにしたときの、くり返しのしくみ
+// 押した瞬間に1回動き、少し待ってから、一定の間隔でくり返し動く
+const repeaters = {};
+function startRepeat(name, action) {
+  stopRepeat(name);
+  action();
+  const timer = { delayId: null, intervalId: null };
+  timer.delayId = setTimeout(() => {
+    timer.intervalId = setInterval(action, KEY_REPEAT_INTERVAL_MS);
+  }, KEY_REPEAT_DELAY_MS);
+  repeaters[name] = timer;
+}
+function stopRepeat(name) {
+  const timer = repeaters[name];
+  if (!timer) return;
+  clearTimeout(timer.delayId);
+  clearInterval(timer.intervalId);
+  delete repeaters[name];
+}
+function stopAllInput() {
+  Object.keys(repeaters).forEach(stopRepeat);
+  softDropping = false;
+}
+
+// 文字の入力欄や選択欄を操作しているときは、ゲームのキー操作をしない
+function isTypingTarget(target) {
+  const tag = target && target.tagName;
+  return tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
+}
+
+document.addEventListener("keydown", (event) => {
+  if (isTypingTarget(event.target)) return;
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  const key = event.key;
+
+  if (key === "ArrowLeft" || key === "ArrowRight") {
+    event.preventDefault();
+    if (event.repeat) return; // くり返しは自分で管理する
+    const dx = key === "ArrowLeft" ? -1 : 1;
+    startRepeat(key, () => moveSideways(dx));
+  } else if (key === "ArrowUp" || key === "z" || key === "Z") {
+    event.preventDefault();
+    if (event.repeat) return;
+    rotate();
+  } else if (key === "ArrowDown") {
+    event.preventDefault();
+    if (event.repeat) return;
+    softDropping = true;
+  }
+});
+
+document.addEventListener("keyup", (event) => {
+  const key = event.key;
+  if (key === "ArrowLeft" || key === "ArrowRight") {
+    stopRepeat(key);
+  } else if (key === "ArrowDown") {
+    softDropping = false;
+    fallTimer = 0; // 離したら、ふつうの速さで数え直す
+  }
+});
+
+// 別のウィンドウに切りかえたときは、押しっぱなしの状態を解除する
+window.addEventListener("blur", stopAllInput);
+
+/* =========================================================
+   ゲームを始める
+   ========================================================= */
+function startGame() {
+  board = createEmptyBoard();
+  placedCount = 0;
+  nextShapeId = pickRandomShapeId();
+  spawnNextPiece();
+  updateInfo();
+}
+
+startGame();
+requestAnimationFrame(gameLoop);
