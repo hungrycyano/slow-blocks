@@ -186,6 +186,11 @@ select {
   background: #b5523b;
 }
 
+/* 「画像で保存」ボタン */
+.btn-save {
+  background: #7a5ea8;
+}
+
 /* ---------- 模様モードのスイッチ ---------- */
 
 .switch {

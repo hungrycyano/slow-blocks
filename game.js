@@ -194,6 +194,7 @@ const restartButtons = document.querySelectorAll(".js-restart");
 const clearButtons = document.querySelectorAll(".js-clear");
 const colorList = document.getElementById("color-list");
 const colorResetButton = document.getElementById("color-reset");
+const saveImageButtons = document.querySelectorAll(".js-save-image");
 const toast = document.getElementById("toast");
 
 // キャンバスの大きさ(ピクセル)を、盤面のマス数に合わせる
@@ -651,6 +652,49 @@ function showToast(message) {
 }
 
 /* =========================================================
+   画像(PNG)で保存
+   ---------------------------------------------------------
+   盤面に積んだ模様だけを(落ちている途中のブロックは入れずに)、
+   別のキャンバスに描いて、PNG画像として保存します。
+   ========================================================= */
+function saveImage() {
+  const scale = 2; // くっきりさせるため、2倍の大きさで描く
+  const canvas = document.createElement("canvas");
+  canvas.width = BOARD_COLS * CELL_SIZE * scale;
+  canvas.height = BOARD_ROWS * CELL_SIZE * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+  drawBoardBackground(ctx);
+  drawPlacedBlocks(ctx);
+
+  canvas.toBlob((blob) => {
+    if (!blob) {
+      showToast("画像を作れませんでした");
+      return;
+    }
+    // ダウンロード用のリンクを作って、自動で押す
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "slow-tetris-" + makeTimeStamp() + ".png";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    // 少し待ってから、使い終わったURLを片づける
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    showToast("模様を画像で保存しました");
+  }, "image/png");
+}
+
+// ファイル名に使う日時(例:20260101-123045)
+function makeTimeStamp() {
+  const d = new Date();
+  const two = (n) => String(n).padStart(2, "0");
+  return d.getFullYear() + two(d.getMonth() + 1) + two(d.getDate()) +
+    "-" + two(d.getHours()) + two(d.getMinutes()) + two(d.getSeconds());
+}
+
+/* =========================================================
    「色の設定」の画面
    ========================================================= */
 
@@ -846,6 +890,7 @@ pauseButton.addEventListener("click", togglePause);
 resumeButton.addEventListener("click", () => setPaused(false));
 restartButtons.forEach((button) => button.addEventListener("click", restartGame));
 clearButtons.forEach((button) => button.addEventListener("click", clearBoard));
+saveImageButtons.forEach((button) => button.addEventListener("click", saveImage));
 
 // 模様モードのスイッチ
 patternModeCheckbox.checked = patternMode;
