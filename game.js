@@ -17,6 +17,11 @@ const FALL_INTERVAL_MS = 2000;
 // 離すと、すぐに上の FALL_INTERVAL_MS に戻ります。
 const SOFT_DROP_INTERVAL_MS = 60;
 
+// レベルが上がる「置いたブロックの数」
+// (レベルが上がると形が複雑になります。速さは変わりません)
+const LEVEL2_COUNT = 20; // この数だけ置くと、レベル2になる
+const LEVEL3_COUNT = 40; // この数だけ置くと、レベル3になる
+
 // 盤面の大きさ(横のマス数と、縦のマス数)
 const BOARD_COLS = 10;
 const BOARD_ROWS = 20;
@@ -47,6 +52,29 @@ const SHAPES = [
   { id: "d2", name: "2マス(━)", level: 1, color: "#56b4e9", cells: [[0, 0], [1, 0]] },
   { id: "t3i", name: "3マス 一直線", level: 1, color: "#009e73", cells: [[0, 0], [1, 0], [2, 0]] },
   { id: "t3l", name: "3マス L字", level: 1, color: "#cc79a7", cells: [[0, 0], [0, 1], [1, 1]] },
+
+  // ----- レベル2:4マスの形(いわゆるテトリスの7種類) -----
+  { id: "I4", name: "4マス I", level: 2, color: "#00b8d4", cells: [[0, 0], [1, 0], [2, 0], [3, 0]] },
+  { id: "O4", name: "4マス O", level: 2, color: "#f0e442", cells: [[0, 0], [1, 0], [0, 1], [1, 1]] },
+  { id: "T4", name: "4マス T", level: 2, color: "#9c4dcc", cells: [[0, 0], [1, 0], [2, 0], [1, 1]] },
+  { id: "S4", name: "4マス S", level: 2, color: "#43a047", cells: [[1, 0], [2, 0], [0, 1], [1, 1]] },
+  { id: "Z4", name: "4マス Z", level: 2, color: "#e53935", cells: [[0, 0], [1, 0], [1, 1], [2, 1]] },
+  { id: "J4", name: "4マス J", level: 2, color: "#1e5bd8", cells: [[0, 0], [0, 1], [1, 1], [2, 1]] },
+  { id: "L4", name: "4マス L", level: 2, color: "#ff7f0e", cells: [[2, 0], [0, 1], [1, 1], [2, 1]] },
+
+  // ----- レベル3:5マスの形(ペントミノ12種類) -----
+  { id: "F5", name: "5マス F", level: 3, color: "#8d6e63", cells: [[1, 0], [2, 0], [0, 1], [1, 1], [1, 2]] },
+  { id: "I5", name: "5マス I", level: 3, color: "#26a69a", cells: [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]] },
+  { id: "L5", name: "5マス L", level: 3, color: "#ffb74d", cells: [[0, 0], [0, 1], [0, 2], [0, 3], [1, 3]] },
+  { id: "N5", name: "5マス N", level: 3, color: "#7e57c2", cells: [[1, 0], [1, 1], [0, 2], [1, 2], [0, 3]] },
+  { id: "P5", name: "5マス P", level: 3, color: "#f06292", cells: [[0, 0], [1, 0], [0, 1], [1, 1], [0, 2]] },
+  { id: "T5", name: "5マス T", level: 3, color: "#aed581", cells: [[0, 0], [1, 0], [2, 0], [1, 1], [1, 2]] },
+  { id: "U5", name: "5マス U", level: 3, color: "#4dd0e1", cells: [[0, 0], [2, 0], [0, 1], [1, 1], [2, 1]] },
+  { id: "V5", name: "5マス V", level: 3, color: "#ba68c8", cells: [[0, 0], [0, 1], [0, 2], [1, 2], [2, 2]] },
+  { id: "W5", name: "5マス W", level: 3, color: "#ffd54f", cells: [[0, 0], [0, 1], [1, 1], [1, 2], [2, 2]] },
+  { id: "X5", name: "5マス X", level: 3, color: "#ef5350", cells: [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2]] },
+  { id: "Y5", name: "5マス Y", level: 3, color: "#5c6bc0", cells: [[1, 0], [0, 1], [1, 1], [1, 2], [1, 3]] },
+  { id: "Z5", name: "5マス Z", level: 3, color: "#bcaaa4", cells: [[0, 0], [1, 0], [1, 1], [1, 2], [2, 2]] },
 ];
 
 /* =========================================================
@@ -66,6 +94,12 @@ let nextShapeId = null;
 // 置いたブロックの数
 let placedCount = 0;
 
+// 画面で選んだ「はじめのレベル」(1〜3)
+let startLevel = 1;
+
+// いまのレベル(1〜3)
+let level = 1;
+
 // ↓キー(▼ボタン)を押している間だけ true になる
 let softDropping = false;
 
@@ -83,6 +117,8 @@ const boardCtx = boardCanvas.getContext("2d");
 const nextCanvas = document.getElementById("next");
 const nextCtx = nextCanvas.getContext("2d");
 const countValue = document.getElementById("count-value");
+const levelValue = document.getElementById("level-value");
+const startLevelSelect = document.getElementById("start-level");
 const toast = document.getElementById("toast");
 
 // キャンバスの大きさ(ピクセル)を、盤面のマス数に合わせる
@@ -134,9 +170,33 @@ function rotateCells(cells) {
   return normalizeCells(cells.map(([x, y]) => [-y, x]));
 }
 
-// 出てくるブロックの形を、ランダムに1つ選ぶ
+// 置いたブロックの数と「はじめのレベル」から、いまのレベルを決める
+// (レベルで変わるのは、出てくるブロックの形だけです。速さは変わりません)
+function calcLevel() {
+  let byCount = 1;
+  if (placedCount >= LEVEL3_COUNT) {
+    byCount = 3;
+  } else if (placedCount >= LEVEL2_COUNT) {
+    byCount = 2;
+  }
+  return Math.max(startLevel, byCount);
+}
+
+// レベルを計算しなおす。上がったときは、お知らせを出す(ゲームは止めない)
+function refreshLevel() {
+  const newLevel = calcLevel();
+  if (newLevel > level) {
+    const message = newLevel === 2
+      ? "レベル2になりました!4マスの形が出てきます"
+      : "レベル3になりました!5マスの形が出てきます";
+    showToast(message);
+  }
+  level = newLevel;
+}
+
+// 出てくるブロックの形を、ランダムに1つ選ぶ(いまのレベル以下の形から選ぶ)
 function pickRandomShapeId() {
-  const choices = SHAPES;
+  const choices = SHAPES.filter((shape) => shape.level <= level);
   const index = Math.floor(Math.random() * choices.length);
   return choices[index].id;
 }
@@ -234,6 +294,7 @@ function lockPiece() {
     board[current.y + cy][current.x + cx] = current.shapeId;
   }
   placedCount += 1;
+  refreshLevel();
   spawnNextPiece();
   updateInfo();
 }
@@ -358,6 +419,7 @@ function drawShapePreview(ctx, shapeId) {
 // 置いたブロックの数などの表示を新しくする
 function updateInfo() {
   countValue.textContent = placedCount;
+  levelValue.textContent = level;
   drawShapePreview(nextCtx, nextShapeId);
 }
 
@@ -460,11 +522,26 @@ document.addEventListener("keyup", (event) => {
 window.addEventListener("blur", stopAllInput);
 
 /* =========================================================
+   画面のボタンなど
+   ========================================================= */
+
+// 「はじめのレベル」を選んだら、すぐにそのレベルの形が出てくるようにする
+startLevelSelect.addEventListener("change", () => {
+  startLevel = Number(startLevelSelect.value);
+  refreshLevel();
+  // 「次のブロック」も、新しいレベルの形から選びなおす
+  nextShapeId = pickRandomShapeId();
+  updateInfo();
+  startLevelSelect.blur(); // ←→キーで選択欄が変わらないように、選択を外す
+});
+
+/* =========================================================
    ゲームを始める
    ========================================================= */
 function startGame() {
   board = createEmptyBoard();
   placedCount = 0;
+  level = calcLevel();
   nextShapeId = pickRandomShapeId();
   spawnNextPiece();
   updateInfo();
