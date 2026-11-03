@@ -22,6 +22,9 @@ const SLOW_MULTIPLIER = 5;
 // 「ゆっくり」が続く長さ(ミリ秒。15000 = 15秒)。たったら自動で元の速さに戻ります
 const SLOW_DURATION_MS = 15000;
 
+// 「やり直し」で、何手前まで戻れるか
+const UNDO_LIMIT = 20;
+
 // レベルが上がる「置いたブロックの数」
 // (レベルが上がると形が複雑になります。速さは変わりません)
 const LEVEL2_COUNT = 20; // この数だけ置くと、レベル2になる
@@ -108,6 +111,10 @@ let level = 1;
 // ↓キー(▼ボタン)を押している間だけ true になる
 let softDropping = false;
 
+// 「やり直し」のための記録。ブロックを置く直前の様子を、新しい順に最大 UNDO_LIMIT 個まで覚えておく
+// 1つの記録 = { board: 盤面の写し, placedCount: 置いた数, shapeId: 置いたブロックの形, nextShapeId: そのときの次のブロック }
+let history = [];
+
 // 「ゆっくり」の残り時間(ミリ秒)。0 のときは、ゆっくりではない
 let slowRemainingMs = 0;
 
@@ -129,6 +136,7 @@ const levelValue = document.getElementById("level-value");
 const startLevelSelect = document.getElementById("start-level");
 const slowButton = document.getElementById("slow-button");
 const slowLabel = document.getElementById("slow-label");
+const undoButton = document.getElementById("undo-button");
 const toast = document.getElementById("toast");
 
 // キャンバスの大きさ(ピクセル)を、盤面のマス数に合わせる
@@ -298,14 +306,50 @@ function stepDown() {
   }
 }
 
+// 盤面の写しを作る(元の盤面を変えても、写しは変わらない)
+function copyBoard(source) {
+  return source.map((row) => row.slice());
+}
+
 // いまのブロックを、盤面に置く(固定する)
 function lockPiece() {
+  // 「やり直し」のために、置く前の様子を記録しておく
+  history.push({
+    board: copyBoard(board),
+    placedCount,
+    shapeId: current.shapeId,
+    nextShapeId,
+  });
+  // 古すぎる記録は捨てる
+  if (history.length > UNDO_LIMIT) {
+    history.shift();
+  }
+
   for (const [cx, cy] of current.cells) {
     board[current.y + cy][current.x + cx] = current.shapeId;
   }
   placedCount += 1;
   refreshLevel();
   spawnNextPiece();
+  updateInfo();
+}
+
+/* =========================================================
+   やり直し(元に戻す)
+   ---------------------------------------------------------
+   直前に置いたブロックを盤面から取り除き、その1つ前の状態に戻します。
+   取り除いたブロックと同じ形が、また上から落ちてきます。
+   ========================================================= */
+function undo() {
+  if (history.length === 0) return; // 戻せる記録がない
+  const record = history.pop();
+  board = record.board;
+  placedCount = record.placedCount; // 置いた数の表示も戻す
+  level = calcLevel(); // 置いた数が減ったので、レベルも計算しなおす
+  nextShapeId = record.nextShapeId;
+  current = createPiece(record.shapeId); // 同じ形を、上から落ちてくる位置に戻す
+  fallTimer = 0;
+  softDropping = false;
   updateInfo();
 }
 
@@ -465,6 +509,9 @@ function drawShapePreview(ctx, shapeId) {
 function updateInfo() {
   countValue.textContent = placedCount;
   levelValue.textContent = level;
+  // 戻せる記録がないときは「やり直し」を押せない見た目にする
+  undoButton.disabled = history.length === 0;
+  undoButton.title = "あと" + history.length + "回 戻せます";
   drawShapePreview(nextCtx, nextShapeId);
 }
 
@@ -560,6 +607,10 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     if (event.repeat) return;
     toggleSlow();
+  } else if (key === "u" || key === "U") {
+    event.preventDefault();
+    if (event.repeat) return;
+    undo();
   }
 });
 
@@ -581,6 +632,7 @@ window.addEventListener("blur", stopAllInput);
    ========================================================= */
 
 slowButton.addEventListener("click", toggleSlow);
+undoButton.addEventListener("click", undo);
 
 // 「はじめのレベル」を選んだら、すぐにそのレベルの形が出てくるようにする
 startLevelSelect.addEventListener("change", () => {
@@ -598,6 +650,7 @@ startLevelSelect.addEventListener("change", () => {
 function startGame() {
   board = createEmptyBoard();
   placedCount = 0;
+  history = [];
   level = calcLevel();
   nextShapeId = pickRandomShapeId();
   spawnNextPiece();
