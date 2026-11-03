@@ -134,6 +134,45 @@ let fallTimer = 0;
 let lastTime = null;
 
 /* =========================================================
+   好きな色(ブラウザに保存する)
+   ========================================================= */
+
+// 色を保存するときの名前
+const COLOR_STORAGE_KEY = "slowTetris.colors";
+
+// 自分で選んだ色:{ 形の id: "#rrggbb" }
+let customColors = loadColors();
+
+// 保存しておいた色を読みこむ。読めないとき(保存が使えないブラウザなど)は、空のままにする
+function loadColors() {
+  try {
+    const text = window.localStorage.getItem(COLOR_STORAGE_KEY);
+    if (!text) return {};
+    const data = JSON.parse(text);
+    const result = {};
+    // 正しい形の色("#" + 6けた)だけを使う
+    for (const shape of SHAPES) {
+      const value = data && data[shape.id];
+      if (typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value)) {
+        result[shape.id] = value.toLowerCase();
+      }
+    }
+    return result;
+  } catch (error) {
+    return {}; // 失敗しても、はじめの色で遊べる
+  }
+}
+
+// 選んだ色を保存する。保存に失敗しても、ゲームはそのまま動く
+function saveColors() {
+  try {
+    window.localStorage.setItem(COLOR_STORAGE_KEY, JSON.stringify(customColors));
+  } catch (error) {
+    // 保存できなくても、何もしない(この画面を開いている間は、選んだ色が使われます)
+  }
+}
+
+/* =========================================================
    画面の部品を取り出す
    ========================================================= */
 const boardCanvas = document.getElementById("board");
@@ -153,6 +192,8 @@ const fullOverlay = document.getElementById("full-overlay");
 const patternModeCheckbox = document.getElementById("pattern-mode");
 const restartButtons = document.querySelectorAll(".js-restart");
 const clearButtons = document.querySelectorAll(".js-clear");
+const colorList = document.getElementById("color-list");
+const colorResetButton = document.getElementById("color-reset");
 const toast = document.getElementById("toast");
 
 // キャンバスの大きさ(ピクセル)を、盤面のマス数に合わせる
@@ -179,9 +220,9 @@ function getShape(shapeId) {
   return SHAPES.find((shape) => shape.id === shapeId);
 }
 
-// 形の色を返す
+// 形の色を返す(自分で選んだ色があれば、そちらを使う)
 function getColor(shapeId) {
-  return getShape(shapeId).color;
+  return customColors[shapeId] || getShape(shapeId).color;
 }
 
 // マスの座標を、いちばん左上が [0, 0] になるようにずらす
@@ -610,6 +651,74 @@ function showToast(message) {
 }
 
 /* =========================================================
+   「色の設定」の画面
+   ========================================================= */
+
+// 色の設定の、1つ1つの行(形の絵と、色を選ぶ部品)を覚えておく
+const colorRows = [];
+
+// 形ごとに「形の絵」「名前」「色を選ぶ部品」を並べる
+function buildColorSettings() {
+  const levelNames = { 1: "レベル1の形", 2: "レベル2の形(4マス)", 3: "レベル3の形(5マス)" };
+  for (const levelNumber of [1, 2, 3]) {
+    const heading = document.createElement("h3");
+    heading.className = "color-group-title";
+    heading.textContent = levelNames[levelNumber];
+    colorList.appendChild(heading);
+
+    const group = document.createElement("div");
+    group.className = "color-group";
+    colorList.appendChild(group);
+
+    for (const shape of SHAPES.filter((s) => s.level === levelNumber)) {
+      const label = document.createElement("label");
+      label.className = "color-item";
+
+      const preview = document.createElement("canvas");
+      preview.width = 60;
+      preview.height = 60;
+      preview.className = "color-preview";
+
+      const name = document.createElement("span");
+      name.className = "color-name";
+      name.textContent = shape.name;
+
+      const input = document.createElement("input");
+      input.type = "color";
+      input.value = getColor(shape.id);
+      input.setAttribute("aria-label", shape.name + "の色");
+
+      // 色を選んだら、すぐに盤面と次のブロックの色を変えて、保存する
+      input.addEventListener("input", () => {
+        customColors[shape.id] = input.value.toLowerCase();
+        drawShapePreview(preview.getContext("2d"), shape.id);
+        updateInfo();
+        saveColors();
+      });
+
+      label.appendChild(preview);
+      label.appendChild(name);
+      label.appendChild(input);
+      group.appendChild(label);
+      colorRows.push({ shape, input, preview });
+      drawShapePreview(preview.getContext("2d"), shape.id);
+    }
+  }
+}
+
+// 「色をもとに戻す」:はじめの色に戻す
+function resetColors() {
+  customColors = {};
+  saveColors();
+  for (const row of colorRows) {
+    row.input.value = row.shape.color;
+    drawShapePreview(row.preview.getContext("2d"), row.shape.id);
+  }
+  updateInfo();
+  showToast("色をもとに戻しました");
+}
+
+/* =========================================================
    毎回の画面更新(1秒に約60回くり返す)
    ========================================================= */
 function gameLoop(time) {
@@ -775,5 +884,8 @@ function startGame() {
   updateInfo();
 }
 
+colorResetButton.addEventListener("click", resetColors);
+
+buildColorSettings();
 startGame();
 requestAnimationFrame(gameLoop);

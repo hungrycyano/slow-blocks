@@ -312,6 +312,77 @@ select {
   opacity: 1;
 }
 
+/* ---------- 色の設定 ---------- */
+
+.colors {
+  margin-top: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0 12px;
+}
+
+.colors summary {
+  padding: 10px 0;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.colors[open] {
+  padding-bottom: 12px;
+}
+
+.color-group-title {
+  margin: 12px 0 6px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.color-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+}
+
+.color-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.color-preview {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+}
+
+.color-name {
+  flex: 1;
+}
+
+.color-item input[type="color"] {
+  flex: none;
+  width: 40px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+
+/* 色の設定などで使う、ひかえめなボタン */
+.btn-sub {
+  margin-top: 12px;
+  background: #6b7a8a;
+}
+
 /* ---------- 操作方法 ---------- */
 
 .help {
