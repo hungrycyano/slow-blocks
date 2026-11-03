@@ -1,5 +1,5 @@
 /* =========================================================
-   ゆっくりテトリス(slow-tetris)
+   ゆっくりブロック(slow-blocks)
    ---------------------------------------------------------
    このファイルの先頭に「設定」をまとめています。
    数字を書きかえて保存し、ブラウザを再読み込みすると反映されます。
@@ -61,7 +61,7 @@ const SHAPES = [
   { id: "t3i", name: "3マス 一直線", level: 1, color: "#009e73", cells: [[0, 0], [1, 0], [2, 0]] },
   { id: "t3l", name: "3マス L字", level: 1, color: "#cc79a7", cells: [[0, 0], [0, 1], [1, 1]] },
 
-  // ----- レベル2:4マスの形(いわゆるテトリスの7種類) -----
+  // ----- レベル2:4マスの形(I・O・T・S・Z・J・L の7種類) -----
   { id: "I4", name: "4マス I", level: 2, color: "#00b8d4", cells: [[0, 0], [1, 0], [2, 0], [3, 0]] },
   { id: "O4", name: "4マス O", level: 2, color: "#f0e442", cells: [[0, 0], [1, 0], [0, 1], [1, 1]] },
   { id: "T4", name: "4マス T", level: 2, color: "#9c4dcc", cells: [[0, 0], [1, 0], [2, 0], [1, 1]] },
@@ -138,7 +138,7 @@ let lastTime = null;
    ========================================================= */
 
 // 色を保存するときの名前
-const COLOR_STORAGE_KEY = "slowTetris.colors";
+const COLOR_STORAGE_KEY = "slowBlocks.colors";
 
 // 自分で選んだ色:{ 形の id: "#rrggbb" }
 let customColors = loadColors();
@@ -410,7 +410,7 @@ function lockPiece() {
   updateInfo();
 }
 
-// 横一列がすべてうまっている段を消して、上の段を下にずらす(ふつうのテトリス)
+// 横一列がすべてうまっている段を消して、上の段を下にずらす(ふつうの落ちものパズル)
 // ※ 列を消しても、落ちる速さは変わりません
 function clearFullRows() {
   const remaining = board.filter((row) => row.some((cell) => cell === null));
@@ -677,7 +677,7 @@ function saveImage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "slow-tetris-" + makeTimeStamp() + ".png";
+    link.download = "slow-blocks-" + makeTimeStamp() + ".png";
     document.body.appendChild(link);
     link.click();
     link.remove();
