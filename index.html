@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ゆっくりテトリス</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <h1>ゆっくりテトリス</h1>
+    <p class="lead">あせらず、ブロックを積んで模様を作ろう</p>
+  </header>
+
+  <main class="game">
+    <!-- 盤面と、横の情報パネル -->
+    <div class="play-area">
+      <div class="board-wrap">
+        <canvas id="board" class="board" aria-label="盤面"></canvas>
+        <!-- レベルが上がったときなどの短いお知らせ -->
+        <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+        <!-- 一時停止中に出す表示 -->
+        <div id="pause-overlay" class="overlay" hidden>
+          <div class="overlay-box">
+            <p class="overlay-title">一時停止中</p>
+            <button type="button" id="resume-button" class="btn">再開する</button>
+          </div>
+        </div>
+
+        <!-- 盤面がいっぱいになったときに出す表示 -->
+        <div id="full-overlay" class="overlay" hidden>
+          <div class="overlay-box">
+            <p class="overlay-title">いっぱいになりました</p>
+            <p class="overlay-text">すてきな模様ができましたね</p>
+            <button type="button" class="btn js-restart">もう一度</button>
+            <button type="button" class="btn btn-danger js-clear">盤面を全部消す</button>
+            <button type="button" class="btn btn-save js-save-image">画像で保存</button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="side">
+        <section class="info-box">
+          <h2>次のブロック</h2>
+          <canvas id="next" class="next" aria-label="次のブロック"></canvas>
+        </section>
+        <section class="info-box">
+          <h2>レベル</h2>
+          <p class="info-value" id="level-value">1</p>
+        </section>
+        <section class="info-box">
+          <h2>置いたブロック</h2>
+          <p class="info-value"><span id="count-value">0</span> 個</p>
+        </section>
+        <section class="info-box">
+          <label class="switch">
+            <input type="checkbox" id="pattern-mode" checked>
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-text">模様モード</span>
+          </label>
+          <p class="hint">オンのときは、そろった列も消えません</p>
+        </section>
+        <section class="info-box">
+          <label class="field-label" for="start-level">はじめのレベル</label>
+          <select id="start-level">
+            <option value="1">レベル1</option>
+            <option value="2">レベル2</option>
+            <option value="3">レベル3</option>
+          </select>
+        </section>
+      </aside>
+    </div>
+
+    <!-- ブロックを動かすボタン(スマホ用。パソコンでもマウスで使えます) -->
+    <div class="pad" aria-label="ブロックの操作ボタン">
+      <button type="button" class="btn pad-btn" id="pad-left" aria-label="左へ動かす">◀</button>
+      <button type="button" class="btn pad-btn" id="pad-rotate" aria-label="回転">回転</button>
+      <button type="button" class="btn pad-btn" id="pad-down" aria-label="押している間、下へ速く落とす">▼</button>
+      <button type="button" class="btn pad-btn" id="pad-right" aria-label="右へ動かす">▶</button>
+    </div>
+
+    <!-- ゲームのボタン -->
+    <div class="actions">
+      <button type="button" id="slow-button" class="btn btn-slow" aria-pressed="false">
+        <span id="slow-label">ゆっくり</span>
+      </button>
+      <button type="button" id="undo-button" class="btn" disabled>やり直し</button>
+      <button type="button" id="pause-button" class="btn" aria-pressed="false">一時停止</button>
+      <button type="button" class="btn js-restart">もう一度</button>
+      <button type="button" class="btn btn-danger js-clear">盤面を全部消す</button>
+      <button type="button" class="btn btn-save js-save-image">画像で保存</button>
+    </div>
+
+    <!-- 色の設定(開いたり閉じたりできる) -->
+    <details class="colors">
+      <summary>色の設定</summary>
+      <p class="hint">形ごとに、好きな色を選べます。選んだ色は、このブラウザに保存されます。</p>
+      <div id="color-list"></div>
+      <button type="button" id="color-reset" class="btn btn-sub">色をもとに戻す</button>
+    </details>
+
+    <!-- 操作方法の説明 -->
+    <section class="help">
+      <h2>操作方法(キーボード)</h2>
+      <ul>
+        <li><kbd>←</kbd> <kbd>→</kbd> 左右に動かす</li>
+        <li><kbd>↑</kbd> または <kbd>Z</kbd> 回転</li>
+        <li><kbd>↓</kbd> 押している間だけ速く落とす</li>
+        <li><kbd>S</kbd> ゆっくり(約15秒、さらに遅くなる)</li>
+        <li><kbd>U</kbd> やり直し(直前に置いたブロックを戻す)</li>
+        <li><kbd>P</kbd> 一時停止 / 再開</li>
+      </ul>
+    </section>
+  </main>
+
+  <!-- ふつうの script(ES Modules ではない)なので、ダブルクリックで開いても動きます -->
+  <script src="game.js"></script>
+</body>
+</html>
