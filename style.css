@@ -181,6 +181,43 @@ select {
   box-shadow: 0 0 0 3px rgba(240, 180, 41, 0.35);
 }
 
+/* ---------- 盤面の上に重ねる表示(一時停止など) ---------- */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  background: rgba(20, 24, 34, 0.6);
+  border-radius: 6px;
+}
+
+/* hidden が付いているときは、必ず隠す */
+.overlay[hidden] {
+  display: none;
+}
+
+.overlay-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 220px;
+  padding: 14px 12px;
+  background: var(--panel);
+  border-radius: var(--radius);
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.overlay-title {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
 /* ---------- お知らせ ---------- */
 
 .toast {

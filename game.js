@@ -115,6 +115,9 @@ let softDropping = false;
 // 1つの記録 = { board: 盤面の写し, placedCount: 置いた数, shapeId: 置いたブロックの形, nextShapeId: そのときの次のブロック }
 let history = [];
 
+// 一時停止中なら true
+let paused = false;
+
 // 「ゆっくり」の残り時間(ミリ秒)。0 のときは、ゆっくりではない
 let slowRemainingMs = 0;
 
@@ -137,6 +140,9 @@ const startLevelSelect = document.getElementById("start-level");
 const slowButton = document.getElementById("slow-button");
 const slowLabel = document.getElementById("slow-label");
 const undoButton = document.getElementById("undo-button");
+const pauseButton = document.getElementById("pause-button");
+const pauseOverlay = document.getElementById("pause-overlay");
+const resumeButton = document.getElementById("resume-button");
 const toast = document.getElementById("toast");
 
 // キャンバスの大きさ(ピクセル)を、盤面のマス数に合わせる
@@ -354,6 +360,21 @@ function undo() {
 }
 
 /* =========================================================
+   一時停止
+   ========================================================= */
+function setPaused(value) {
+  paused = value;
+  stopAllInput();
+  pauseButton.textContent = paused ? "再開" : "一時停止";
+  pauseButton.setAttribute("aria-pressed", paused ? "true" : "false");
+  pauseOverlay.hidden = !paused;
+}
+
+function togglePause() {
+  setPaused(!paused);
+}
+
+/* =========================================================
    落ちる速さ
    ---------------------------------------------------------
    ここが「1段落ちる間隔」を決める、ただ1つの場所です。
@@ -533,13 +554,16 @@ function gameLoop(time) {
   const dt = Math.min(time - lastTime, 250);
   lastTime = time;
 
-  // 「ゆっくり」の残り時間を減らす。0 になったら自動で元の速さに戻る
-  if (slowRemainingMs > 0) {
-    slowRemainingMs = Math.max(0, slowRemainingMs - dt);
-    updateSlowButton();
+  // 一時停止中は、ブロックも「ゆっくり」の残り時間も進めない
+  if (!paused) {
+    // 「ゆっくり」の残り時間を減らす。0 になったら自動で元の速さに戻る
+    if (slowRemainingMs > 0) {
+      slowRemainingMs = Math.max(0, slowRemainingMs - dt);
+      updateSlowButton();
+    }
   }
 
-  if (current) {
+  if (current && !paused) {
     fallTimer += dt;
     if (fallTimer >= getFallInterval()) {
       fallTimer = 0;
@@ -590,6 +614,18 @@ document.addEventListener("keydown", (event) => {
   if (event.ctrlKey || event.metaKey || event.altKey) return;
   const key = event.key;
 
+  // 一時停止は、いつでも切りかえられる
+  if (key === "p" || key === "P") {
+    event.preventDefault();
+    if (!event.repeat) togglePause();
+    return;
+  }
+  // 一時停止中は、ほかの操作をしない(矢印キーでページが動かないようにだけする)
+  if (paused) {
+    if (key.startsWith("Arrow")) event.preventDefault();
+    return;
+  }
+
   if (key === "ArrowLeft" || key === "ArrowRight") {
     event.preventDefault();
     if (event.repeat) return; // くり返しは自分で管理する
@@ -633,6 +669,8 @@ window.addEventListener("blur", stopAllInput);
 
 slowButton.addEventListener("click", toggleSlow);
 undoButton.addEventListener("click", undo);
+pauseButton.addEventListener("click", togglePause);
+resumeButton.addEventListener("click", () => setPaused(false));
 
 // 「はじめのレベル」を選んだら、すぐにそのレベルの形が出てくるようにする
 startLevelSelect.addEventListener("change", () => {
