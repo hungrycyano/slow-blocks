@@ -17,6 +17,11 @@ const FALL_INTERVAL_MS = 2000;
 // 離すと、すぐに上の FALL_INTERVAL_MS に戻ります。
 const SOFT_DROP_INTERVAL_MS = 60;
 
+// 「ゆっくり」ボタンを押したとき、落ちる間隔を何倍にするか(5倍なら 2秒 → 10秒)
+const SLOW_MULTIPLIER = 5;
+// 「ゆっくり」が続く長さ(ミリ秒。15000 = 15秒)。たったら自動で元の速さに戻ります
+const SLOW_DURATION_MS = 15000;
+
 // レベルが上がる「置いたブロックの数」
 // (レベルが上がると形が複雑になります。速さは変わりません)
 const LEVEL2_COUNT = 20; // この数だけ置くと、レベル2になる
@@ -103,6 +108,9 @@ let level = 1;
 // ↓キー(▼ボタン)を押している間だけ true になる
 let softDropping = false;
 
+// 「ゆっくり」の残り時間(ミリ秒)。0 のときは、ゆっくりではない
+let slowRemainingMs = 0;
+
 // 前の段から、どれだけ時間がたったか(ミリ秒)
 let fallTimer = 0;
 
@@ -119,6 +127,8 @@ const nextCtx = nextCanvas.getContext("2d");
 const countValue = document.getElementById("count-value");
 const levelValue = document.getElementById("level-value");
 const startLevelSelect = document.getElementById("start-level");
+const slowButton = document.getElementById("slow-button");
+const slowLabel = document.getElementById("slow-label");
 const toast = document.getElementById("toast");
 
 // キャンバスの大きさ(ピクセル)を、盤面のマス数に合わせる
@@ -311,7 +321,42 @@ function getFallInterval() {
     // ↓(▼)を押している間だけ速く落ちる。離すと元に戻る
     return SOFT_DROP_INTERVAL_MS;
   }
+  if (slowRemainingMs > 0) {
+    // 「ゆっくり」の間は、さらに遅くなる(2秒 × 5 = 10秒)
+    return FALL_INTERVAL_MS * SLOW_MULTIPLIER;
+  }
   return FALL_INTERVAL_MS;
+}
+
+/* =========================================================
+   ストップモーション(「ゆっくり」ボタン)
+   ========================================================= */
+
+// 「ゆっくり」を始める。ゆっくり中に押したときは、すぐ元の速さに戻す
+function toggleSlow() {
+  if (slowRemainingMs > 0) {
+    slowRemainingMs = 0;
+  } else {
+    slowRemainingMs = SLOW_DURATION_MS;
+  }
+  updateSlowButton();
+}
+
+// 「ゆっくり」ボタンの色と、残り秒数の表示を新しくする
+let shownSlowSeconds = null;
+function updateSlowButton() {
+  const seconds = Math.ceil(slowRemainingMs / 1000);
+  if (seconds === shownSlowSeconds) return; // 表示が変わらないときは何もしない
+  shownSlowSeconds = seconds;
+  if (seconds > 0) {
+    slowButton.classList.add("active");
+    slowButton.setAttribute("aria-pressed", "true");
+    slowLabel.textContent = "ゆっくり中 あと" + seconds + "秒";
+  } else {
+    slowButton.classList.remove("active");
+    slowButton.setAttribute("aria-pressed", "false");
+    slowLabel.textContent = "ゆっくり";
+  }
 }
 
 /* =========================================================
@@ -441,6 +486,12 @@ function gameLoop(time) {
   const dt = Math.min(time - lastTime, 250);
   lastTime = time;
 
+  // 「ゆっくり」の残り時間を減らす。0 になったら自動で元の速さに戻る
+  if (slowRemainingMs > 0) {
+    slowRemainingMs = Math.max(0, slowRemainingMs - dt);
+    updateSlowButton();
+  }
+
   if (current) {
     fallTimer += dt;
     if (fallTimer >= getFallInterval()) {
@@ -505,6 +556,10 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     if (event.repeat) return;
     softDropping = true;
+  } else if (key === "s" || key === "S") {
+    event.preventDefault();
+    if (event.repeat) return;
+    toggleSlow();
   }
 });
 
@@ -524,6 +579,8 @@ window.addEventListener("blur", stopAllInput);
 /* =========================================================
    画面のボタンなど
    ========================================================= */
+
+slowButton.addEventListener("click", toggleSlow);
 
 // 「はじめのレベル」を選んだら、すぐにそのレベルの形が出てくるようにする
 startLevelSelect.addEventListener("change", () => {

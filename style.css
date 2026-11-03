@@ -123,6 +123,64 @@ select {
   background: #fff;
 }
 
+/* ---------- ボタン ---------- */
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.btn {
+  min-height: 44px;
+  padding: 8px 10px;
+  font: inherit;
+  font-weight: bold;
+  color: var(--accent-text);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  touch-action: manipulation; /* スマホでダブルタップしても拡大しない */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.btn:hover {
+  filter: brightness(1.08);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn:focus-visible {
+  outline: 3px solid #f0b429;
+  outline-offset: 2px;
+}
+
+/* 押せないとき */
+.btn:disabled {
+  background: #b9b9b9;
+  color: #f2f2f2;
+  cursor: not-allowed;
+  filter: none;
+  transform: none;
+}
+
+/* 「ゆっくり」ボタン。ゆっくり中は色が変わる */
+.btn-slow {
+  background: #4f8a5b;
+}
+
+.btn-slow.active {
+  background: #f0b429;
+  color: #3a2a00;
+  box-shadow: 0 0 0 3px rgba(240, 180, 41, 0.35);
+}
+
 /* ---------- お知らせ ---------- */
 
 .toast {
