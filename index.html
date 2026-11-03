@@ -27,6 +27,16 @@
             <button type="button" id="resume-button" class="btn">再開する</button>
           </div>
         </div>
+
+        <!-- 盤面がいっぱいになったときに出す表示 -->
+        <div id="full-overlay" class="overlay" hidden>
+          <div class="overlay-box">
+            <p class="overlay-title">いっぱいになりました</p>
+            <p class="overlay-text">すてきな模様ができましたね</p>
+            <button type="button" class="btn js-restart">もう一度</button>
+            <button type="button" class="btn btn-danger js-clear">盤面を全部消す</button>
+          </div>
+        </div>
       </div>
 
       <aside class="side">
@@ -41,6 +51,14 @@
         <section class="info-box">
           <h2>置いたブロック</h2>
           <p class="info-value"><span id="count-value">0</span> 個</p>
+        </section>
+        <section class="info-box">
+          <label class="switch">
+            <input type="checkbox" id="pattern-mode" checked>
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-text">模様モード</span>
+          </label>
+          <p class="hint">オンのときは、そろった列も消えません</p>
         </section>
         <section class="info-box">
           <label class="field-label" for="start-level">はじめのレベル</label>
@@ -60,6 +78,8 @@
       </button>
       <button type="button" id="undo-button" class="btn" disabled>やり直し</button>
       <button type="button" id="pause-button" class="btn" aria-pressed="false">一時停止</button>
+      <button type="button" class="btn js-restart">もう一度</button>
+      <button type="button" class="btn btn-danger js-clear">盤面を全部消す</button>
     </div>
 
     <!-- 操作方法の説明 -->

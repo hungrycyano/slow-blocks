@@ -118,6 +118,12 @@ let history = [];
 // 一時停止中なら true
 let paused = false;
 
+// 盤面がいっぱいで、次のブロックを出せなくなったら true
+let isFull = false;
+
+// 模様モード:true のときは、横一列がそろっても消えない(はじめはオン)
+let patternMode = true;
+
 // 「ゆっくり」の残り時間(ミリ秒)。0 のときは、ゆっくりではない
 let slowRemainingMs = 0;
 
@@ -143,6 +149,10 @@ const undoButton = document.getElementById("undo-button");
 const pauseButton = document.getElementById("pause-button");
 const pauseOverlay = document.getElementById("pause-overlay");
 const resumeButton = document.getElementById("resume-button");
+const fullOverlay = document.getElementById("full-overlay");
+const patternModeCheckbox = document.getElementById("pattern-mode");
+const restartButtons = document.querySelectorAll(".js-restart");
+const clearButtons = document.querySelectorAll(".js-clear");
 const toast = document.getElementById("toast");
 
 // キャンバスの大きさ(ピクセル)を、盤面のマス数に合わせる
@@ -258,8 +268,19 @@ function spawnNextPiece() {
   softDropping = false;
 
   if (!canPlace(current.cells, current.x, current.y)) {
-    // 置く場所がない(盤面がいっぱい)
+    // 置く場所がない(盤面がいっぱい)。ゲームオーバーではなく「いっぱいになりました」と出す
+    nextShapeId = current.shapeId; // 出せなかった形を「次のブロック」に戻しておく
     current = null;
+    setFull(true);
+  }
+}
+
+// 「いっぱいになりました」の表示を出したり消したりする
+function setFull(value) {
+  isFull = value;
+  fullOverlay.hidden = !isFull;
+  if (isFull) {
+    stopAllInput();
   }
 }
 
@@ -335,9 +356,50 @@ function lockPiece() {
     board[current.y + cy][current.x + cx] = current.shapeId;
   }
   placedCount += 1;
+
+  // 模様モードがオフのときだけ、そろった横一列を消す
+  if (!patternMode) {
+    clearFullRows();
+  }
+
   refreshLevel();
   spawnNextPiece();
   updateInfo();
+}
+
+// 横一列がすべてうまっている段を消して、上の段を下にずらす(ふつうのテトリス)
+// ※ 列を消しても、落ちる速さは変わりません
+function clearFullRows() {
+  const remaining = board.filter((row) => row.some((cell) => cell === null));
+  const clearedCount = BOARD_ROWS - remaining.length;
+  for (let i = 0; i < clearedCount; i++) {
+    remaining.unshift(new Array(BOARD_COLS).fill(null)); // 上に空の段を足す
+  }
+  board = remaining;
+}
+
+/* =========================================================
+   盤面を全部消す / もう一度
+   ========================================================= */
+
+// 盤面のブロックを全部消す(確認してから)。置いた数とレベルはそのまま
+function clearBoard() {
+  if (!window.confirm("盤面のブロックを全部消します。本当に消しますか?")) return;
+  board = createEmptyBoard();
+  history = []; // 消す前の盤面には戻れないようにする
+  setFull(false);
+  setPaused(false);
+  spawnNextPiece();
+  updateInfo();
+}
+
+// 最初から始める
+function restartGame() {
+  // ゲームの途中で押したときは、念のため確認する
+  if (!isFull && placedCount > 0) {
+    if (!window.confirm("いまの盤面を消して、最初から始めますか?")) return;
+  }
+  startGame();
 }
 
 /* =========================================================
@@ -356,6 +418,7 @@ function undo() {
   current = createPiece(record.shapeId); // 同じ形を、上から落ちてくる位置に戻す
   fallTimer = 0;
   softDropping = false;
+  setFull(false); // いっぱいになっていても、戻せばまた遊べる
   updateInfo();
 }
 
@@ -371,6 +434,7 @@ function setPaused(value) {
 }
 
 function togglePause() {
+  if (isFull) return; // いっぱいのときは、一時停止の切りかえはしない
   setPaused(!paused);
 }
 
@@ -671,6 +735,18 @@ slowButton.addEventListener("click", toggleSlow);
 undoButton.addEventListener("click", undo);
 pauseButton.addEventListener("click", togglePause);
 resumeButton.addEventListener("click", () => setPaused(false));
+restartButtons.forEach((button) => button.addEventListener("click", restartGame));
+clearButtons.forEach((button) => button.addEventListener("click", clearBoard));
+
+// 模様モードのスイッチ
+patternModeCheckbox.checked = patternMode;
+patternModeCheckbox.addEventListener("change", () => {
+  patternMode = patternModeCheckbox.checked;
+  showToast(patternMode
+    ? "模様モード オン:そろった列も消えずに残ります"
+    : "模様モード オフ:そろった列が消えます");
+  patternModeCheckbox.blur(); // すぐに矢印キーでブロックを動かせるように、選択を外す
+});
 
 // 「はじめのレベル」を選んだら、すぐにそのレベルの形が出てくるようにする
 startLevelSelect.addEventListener("change", () => {
@@ -690,6 +766,10 @@ function startGame() {
   placedCount = 0;
   history = [];
   level = calcLevel();
+  slowRemainingMs = 0;
+  updateSlowButton();
+  setFull(false);
+  setPaused(false);
   nextShapeId = pickRandomShapeId();
   spawnNextPiece();
   updateInfo();
