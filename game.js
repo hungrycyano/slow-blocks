@@ -838,9 +838,9 @@ document.addEventListener("keydown", (event) => {
     if (!event.repeat) togglePause();
     return;
   }
-  // 一時停止中は、ほかの操作をしない(矢印キーでページが動かないようにだけする)
+  // 一時停止中は、ほかの操作をしない(矢印キーやスペースキーでページが動かないようにだけする)
   if (paused) {
-    if (key.startsWith("Arrow")) event.preventDefault();
+    if (key.startsWith("Arrow") || key === " ") event.preventDefault();
     return;
   }
 
@@ -849,7 +849,10 @@ document.addEventListener("keydown", (event) => {
     if (event.repeat) return; // くり返しは自分で管理する
     const dx = key === "ArrowLeft" ? -1 : 1;
     startRepeat(key, () => moveSideways(dx));
-  } else if (key === "ArrowUp" || key === "z" || key === "Z") {
+  } else if (key === "ArrowUp" || key === "z" || key === "Z" || key === " ") {
+    // 回転は ↑、Z、スペースキーのどれでもできる
+    // (preventDefault で、スペースキーでページが下に動いたり、
+    //  最後に押した画面のボタンがもう一度押されたりしないようにする)
     event.preventDefault();
     if (event.repeat) return;
     rotate();
@@ -870,6 +873,10 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("keyup", (event) => {
   const key = event.key;
+  // スペースキーを離したときに、画面のボタンが押されないようにする
+  if (key === " " && !isTypingTarget(event.target)) {
+    event.preventDefault();
+  }
   if (key === "ArrowLeft" || key === "ArrowRight") {
     stopRepeat(key);
   } else if (key === "ArrowDown") {
