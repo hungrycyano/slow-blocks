@@ -445,6 +445,15 @@ function restartGame() {
   startGame();
 }
 
+// R キーで「もう一度」。うっかり押して模様が消えないように、
+// 盤面にブロックがあるときは、いっぱいになったあとでも必ず確認する
+function restartGameFromKey() {
+  if (placedCount > 0) {
+    if (!window.confirm("いまの盤面を消して、最初から始めますか?")) return;
+  }
+  startGame();
+}
+
 /* =========================================================
    やり直し(元に戻す)
    ---------------------------------------------------------
@@ -836,6 +845,15 @@ document.addEventListener("keydown", (event) => {
   if (key === "p" || key === "P") {
     event.preventDefault();
     if (!event.repeat) togglePause();
+    return;
+  }
+  // 「もう一度」も、一時停止中やいっぱいのときに使えるようにする
+  if (key === "r" || key === "R") {
+    event.preventDefault();
+    if (!event.repeat) {
+      stopAllInput(); // 確認の画面が出ている間に、押しっぱなしの状態が残らないように
+      restartGameFromKey();
+    }
     return;
   }
   // 一時停止中は、ほかの操作をしない(矢印キーやスペースキーでページが動かないようにだけする)
